@@ -23,53 +23,57 @@ class DBWorker:
     def __init__(self, dbpath: str):
         self.dbconn = sqlite3.connect(dbpath)
         self.cursor = self.dbconn.cursor()
+
     def commit(self):
         self.dbconn.commit()
+
     def exec(self, statement: str):
         self.cursor.execute(statement)
         self.dbconn.commit()
+
     def retrieve(self) -> list:
         return self.cursor.fetchall()
+
     def exit(self):
         self.dbconn.commit()
         self.dbconn.close()
 
 
-def max_elem_len_by_col(arr: "two-dimensional list"):
-	max_lengths = {}
-	columns = [elem for elem in zip(*arr)]
-	for i in range(len(columns)):		
-		x = str(max(columns[i], key=lambda e: len(str(e))))
-		max_lengths[i] = len(x)
-	return max_lengths
+def max_elem_len_by_col(arr: "two-dimensional list") -> dict:
+    max_lengths = {}
+    columns = [elem for elem in zip(*arr)]
+    for i in range(len(columns)):        
+        x = str(max(columns[i], key=lambda e: len(str(e))))
+        max_lengths[i] = len(x)
+
+    return max_lengths
+
 
 def equalize_length(arr: "two-dimensional list") -> "two dimensional list":
-	out_list = []
-	elem_len = max_elem_len_by_col(arr)
-	for sub in arr:
-		x = []
-		for i in range(len(sub)):
-			x.append(str(sub[i]).center(elem_len[i], " "))
-		out_list.append(x)
-	return out_list
+    '''
+    Will return two-dimensional list with centered, length-aligned, string typed elements inside e.g:
+    >>> equalize_length([[12, '123', '1234'], ['123', 1, '12']])
+    [[' 12', '123', '1234'], ['123', ' 1 ', ' 12 ']]
+    '''
+    out_list = []
+    elem_len = max_elem_len_by_col(arr)
+    for sub in arr:
+        x = []
+        for i in range(len(sub)):
+            x.append(str(sub[i]).center(elem_len[i], " "))
+        out_list.append(x)
+
+    return out_list
 
 
 def arg_work() -> ("method", argparse.Namespace):
     argparser = argparse.ArgumentParser(description="Connects to some SQLITE3 database and works with it in interactive mode.")
     argparser.add_argument("-d", "--dbpath", help="Path to database. If not specified `cmd` will require an imput of path")
+    argparser.add_argument("-q", "--query", help="Run SQL query on specified database (-d is required)")
+    argparser.add_argument
     usage = argparser.print_help
     namespace = argparser.parse_args()
     return usage, namespace
-
-
-def println(*args):
-    # `slowly` prints string data
-    write, flush = sys.stdout.write, sys.stdout.flush
-    for arg in args:
-        for char in arg:
-            write(char)
-            flush()
-    write("\n")
 
 
 def cmd_exec(cmd: str):
@@ -91,8 +95,9 @@ def show_tables(dbconn: DBWorker, statmnt: str) -> None:
         full_sql_stmt = elem[-1]
         tabs_cols = full_sql_stmt.replace('CREATE TABLE ', '')
         tabs_cols = tabs_cols[:-1].split('(')
-        println("[*] Table name: " + tabs_cols[0])
-        println("[*] Columns: " + tabs_cols[1])
+        print("[*] Table name: " + tabs_cols[0])
+        print("[*] Columns: " + tabs_cols[1])
+
 
 def db_work(db_path: str):
     
@@ -108,7 +113,7 @@ def db_work(db_path: str):
             low_inp = inp.lower()
             if low_inp in EXIT_CMDS:
                 dbconn.exit()
-                println("\nBye!")
+                print("\nBye!")
                 break
             elif SHOW_STMT in low_inp:
                 show_tables(dbconn, low_inp)
@@ -122,14 +127,13 @@ def db_work(db_path: str):
                         data = ' | '.join([str(item) for item in elem])
                         selected_rows.append(data)
                     
-                    max_strlen = len(max(selected_rows, key=len)) + 4 # -> 4 because of next print("|", row, "|") adds additional characters
-                    println(" Fetched ".center(max_strlen, '_'))
+                    max_strlen = len(max(selected_rows, key=len)) + 4 # -> 4 because of next print("|", row, "|") adds additional space characters
+                    print(" Fetched ".center(max_strlen, '_'))
 
                     for row in selected_rows:
                         print("|", row, "|")
                         
-                    println(" Done ".center(max_strlen, '-'))
-                    
+                    print(" Done ".center(max_strlen, '-'))                    
             elif not inp:
                 pass
             else:
@@ -137,27 +141,35 @@ def db_work(db_path: str):
                 print("[*] OK!")
         except KeyboardInterrupt:
             dbconn.exit()
-            println("\n\nBye!")
+            print("\n\nBye!")
             break
         except Exception as e:
-            println("[EXCEPTION] `{}`".format(e))
+            print("[EXCEPTION] `{}`".format(e))
+
 
 def main():
     print(banner)
     usage, cmd_args = arg_work()
     
-    if (path := cmd_args.dbpath) != None:
+    if (path := cmd_args.dbpath) and not (quer := cmd_args.query):
         if os.path.exists(path):
-            println("Welcome!\n") #😊
+            print("Welcome!\n") #😊
             db_work(path)
         else:
             print("[!] No such file: `{}`\nCreate? [y/N] ".format(path), end=' ')
             x = input()
             if x.lower().startswith('y'):
-               println("[!] Working with new file: `{}`".format(path))
+               print("[!] Working with new file: `{}`".format(path))
                db_work(path)
             else:
-                println("Bye!")
+                print("Bye!") 
+    elif (path := cmd_args.dbpath) != None and (quer := cmd_args.query):
+        worker = DBWorker(path)
+        worker.exec(quer)
+        res = worker.retrieve()
+        for i in res:
+            print(' '.join([str(x) for x in i]))
+        worker.exit()
     else:
         usage()
 
