@@ -32,7 +32,8 @@ class DBWorker:
         self.dbconn.commit()
 
     def retrieve(self) -> list:
-        return self.cursor.fetchall()
+        f = self.cursor.fetchall()
+        return f
 
     def exit(self):
         self.dbconn.commit()
@@ -41,10 +42,11 @@ class DBWorker:
 
 def max_elem_len_by_col(arr: "two-dimensional list") -> dict:
     max_lengths = {}
-    columns = [elem for elem in zip(*arr)]
-    for i in range(len(columns)):        
-        x = str(max(columns[i], key=lambda e: len(str(e))))
-        max_lengths[i] = len(x)
+    columns = [elem for elem in zip(*arr)] or None
+    if columns is not None:
+        for i in range(len(columns)):
+            x = str(max(columns[i], key=lambda e: len(str(e))))
+            max_lengths[i] = len(x)
 
     return max_lengths
 
@@ -120,20 +122,20 @@ def db_work(db_path: str):
             elif inp.startswith('!'):
                 cmd_exec(inp[1:])
             elif low_inp.startswith("select"):
-                    dbconn.exec(low_inp)
-                    fetched = dbconn.retrieve()
-                    selected_rows = []
-                    for elem in equalize_length(fetched):
-                        data = ' | '.join([str(item) for item in elem])
-                        selected_rows.append(data)
-                    
-                    max_strlen = len(max(selected_rows, key=len)) + 4 # -> 4 because of next print("|", row, "|") adds additional space characters
-                    print(" Fetched ".center(max_strlen, '_'))
+                dbconn.exec(inp)
+                fetched = dbconn.retrieve()
+                selected_rows = []
+                for elem in equalize_length(fetched):
+                    data = ' | '.join([str(item) for item in elem])
+                    selected_rows.append(data)
+                
+                max_strlen = len(max(selected_rows, key=len, default=[])) + 4 # -> 4 because of next print("|", row, "|") adds additional space characters
+                print(" Fetched ".center(max_strlen, '_'))
 
-                    for row in selected_rows:
-                        print("|", row, "|")
-                        
-                    print(" Done ".center(max_strlen, '-'))                    
+                for row in selected_rows:
+                    print("|", row, "|")
+                    
+                print(" Done ".center(max_strlen, '-'))                    
             elif not inp:
                 pass
             else:
@@ -143,8 +145,8 @@ def db_work(db_path: str):
             dbconn.exit()
             print("\n\nBye!")
             break
-        except Exception as e:
-            print("[EXCEPTION] `{}`".format(e))
+        # except Exception as e:
+        #     print("[EXCEPTION] `{}`".format(e))
 
 
 def main():
